@@ -13,6 +13,9 @@ APP_PATH = config.app_path
 application = Flask(__name__)
 application.config['UPLOAD_DIRECTORY'] = UPLOAD_DIRECTORY
 application.config['PATH'] = APP_PATH
+if not os.path.exists(application.config['UPLOAD_DIRECTORY']):
+    os.mkdir(application.config['UPLOAD_DIRECTORY'])
+
 
 #App Methods
 
@@ -65,12 +68,8 @@ def upload_img():
         file = request.files['file']
         if file and is_acceptable_filename(file.filename):
             new_filename = '{0}.{1}'.format(generate_random_string(), strip_extenstion(file.filename))
-            if os.path.exists(application.config['UPLOAD_DIRECTORY']):
-                file.save(os.path.join(application.config['UPLOAD_DIRECTORY'], new_filename))
-
-                return application.config['PATH'] + url_for('get_image', filename=new_filename)
-            else:
-                return "Could not find destination directory: " + application.config['UPLOAD_DIRECTORY']
+            file.save(os.path.join(application.config['UPLOAD_DIRECTORY'], new_filename))
+            return application.config['PATH'] + url_for('get_image', filename=new_filename)
         else:
             return "An invalid operation was attempted."
     else:
