@@ -1,1 +1,1 @@
-web: gunicorn -b 0.0.0.0:80 imageserver:application
+web: gunicorn imageserver:application

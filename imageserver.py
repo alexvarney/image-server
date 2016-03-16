@@ -86,4 +86,4 @@ def delete_img(filename = None):
             return "The file does not exist on this server."
 
 if __name__ == '__main__':
-    application.run()
+    application.run('0.0.0.0', debug=True)
