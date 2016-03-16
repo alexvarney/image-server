@@ -1,0 +1,14 @@
+clipboard==0.0.4
+Flask==0.10.1
+gunicorn==19.4.5
+itsdangerous==0.24
+Jinja2==2.8
+MarkupSafe==0.23
+pyimgur==0.5.3
+pyperclip==1.5.26
+recordtype==1.1
+requests==2.9.1
+urlparse2==1.1.1
+urlparse3==1.0.3
+virtualenv==15.0.0
+Werkzeug==0.11.4

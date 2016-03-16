@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Image Uploader</title>
+    <style type="text/css">
+        .container-center{
+            text-align: center;
+        }
+        #inner-center{
+            display:inline-block;
+        }
+        .inputfile {
+            width: 0.1px;
+            height: 0.1px;
+            opacity: 0;
+            overflow: hidden;
+            position: absolute;
+            z-index: -1;
+        }
+        .inputelement{
+            font-family: sans-serif;
+            font-size: 40px;
+            font-weight: 700;
+            padding:10px;
+            color:#5e5e5e;
+            background-color: #DBDBDB;
+            display: inline-block;
+            border-radius:5px;
+            border-style: solid;
+            border-color:#5e5e5e;
+            border-width:2px;
+        }
+
+        .inputelement:hover{
+            background-color: #6c6c6c;
+            color: #DBDBDB;
+        }
+
+        #submit{
+            height:73px;
+            position:relative;
+            top:2px;
+        }
+
+    </style>
+</head>
+<body>
+<div class="container-center">
+    <div id="inner-center">
+        <form action="" method="POST" enctype="multipart/form-data">
+            <input type="file" name="file" id="file" class="inputfile"/>
+            <label class="inputelement" for="file"><strong>↥ Upload a file...</strong></label>
+            <input class="inputelement" id="submit" type="submit" value="Upload">
+        </form>
+    </div>
+</div>
+</body>
+</html>
