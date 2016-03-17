@@ -50,6 +50,9 @@ def generate_random_string(length = DEFAULT_URL_LENGTH) -> str:
 
     return ''.join([random.choice(ALPHA_CHARS) for x in range(length)])
 
+def get_images():
+    return os.listdir(application.config['UPLOAD_DIRECTORY'])
+
 #App Routes
 @application.route('/')
 def hello_world():
@@ -85,6 +88,10 @@ def delete_img(filename = None):
             return "The file has been deleted."
         else:
             return "The file does not exist on this server."
+
+@application.route('/list/')
+def list_files():
+    return render_template('list_images.html', file_list = get_images(), base_url = application.config['PATH'])
 
 if __name__ == '__main__':
     application.run('0.0.0.0', debug=True)
