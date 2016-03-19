@@ -1,5 +1,0 @@
-file_extentions = ['jpg', 'jpeg', 'png', 'bmp', 'gif']
-url_characters = "abcdefghjkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-upload_directory = "/home/app/imageserver/images"
-default_url_length = 8
-app_path = ""
