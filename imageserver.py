@@ -2,12 +2,12 @@ from flask import Flask, request, send_from_directory, redirect, url_for, render
 from werkzeug.utils import secure_filename
 from functools import wraps
 from database import Image
+from models import ImageModel
 import tinys3
 import random, os, config, uuid, time
 
 #Setup
 application = Flask(__name__)
-print(config.aws_access_key, config.aws_secret_key)
 s3_connection = tinys3.Connection(config.aws_access_key, config.aws_secret_key, tls=True, endpoint=config.aws_s3_endpoint)
 
 
@@ -59,10 +59,6 @@ def generate_random_string(length = application.config['URL_LENGTH']) -> str:
 def check_auth(username, password):
     return username == application.config['USER'] and password == application.config['PASSWORD']
 
-def get_images():
-    return os.listdir(application.config['UPLOAD_DIRECTORY'])
-
-
 def authenticate():
     """Sends a 401 response that enables basic auth"""
     return Response(
@@ -79,9 +75,23 @@ def make_s3_upload(bucket_name:str, destination_directory, key_name, path_to_fil
 
         s3_connection.upload(s3_path, file, bucket_name)
 
-def add_to_database(guid, filename, file_url, bucket=config.aws_s3_bucket_id, passphrase=None, accessability=1, timestamp=int(time.time())):
+def add_to_database(guid, filename, file_url, timestamp, bucket=config.aws_s3_bucket_id, passphrase=None, accessability=1):
 
     Image.create(image_guid=guid, bucket=bucket, filename=filename, url=file_url, accessability=accessability, passphrase=passphrase, timestamp=timestamp)
+
+def get_images():
+    models = []
+    for image in Image.select():
+        im = ImageModel(file_url="http://{endpoint}/{bucket}/{filename}".format
+                            (endpoint=config.aws_s3_endpoint, bucket=image.bucket,
+                            filename=image.filename),
+                        display_url="{app_path}\{shortcode}".format
+                            (app_path=config.app_path, shortcode=image.url),
+                        timestamp=image.timestamp)
+        models.append(im)
+
+    return sorted(models, key= lambda image: image.timestamp)
+
 
 #Decorators
 
@@ -130,15 +140,13 @@ def upload_img():
             while Image.select().where(Image.url == new_url).exists():
                 new_url = generate_random_string()
 
-            print(new_url)
-
             #save the file to disk
             local_temp_path = os.path.join(application.config['UPLOAD_DIRECTORY'], new_filename)
             file.save(local_temp_path)
 
             #Upload to AWS
             make_s3_upload(config.aws_s3_bucket_id, config.aws_s3_bucket_path, new_filename, local_temp_path)
-            add_to_database(file_id, os.path.join(config.aws_s3_bucket_path, new_filename), new_url)
+            add_to_database(file_id, os.path.join(config.aws_s3_bucket_path, new_filename), new_url, timestamp=int(time.time()))
 
             os.remove(local_temp_path)
 
@@ -155,11 +163,18 @@ def upload_img():
 def delete_img(filename = None):
     if filename:
         sanitized_filename = secure_filename(filename)
-        if os.path.exists(os.path.join(application.config['UPLOAD_DIRECTORY'], sanitized_filename)):
-            os.remove(os.path.join(application.config['UPLOAD_DIRECTORY'], sanitized_filename))
-            return "The file has been deleted."
-        else:
-            return "The file does not exist on this server."
+
+        query = Image.select().where(Image.url == sanitized_filename)
+
+        if not query.exists():
+            return "The image does not exist"
+
+        image = query[0]
+        s3_connection.delete(image.filename, bucket=config.aws_s3_bucket_id)
+        image.delete_instance()
+
+        return "Image deleted"
+
 
 @application.route('/list/')
 def list_files():
