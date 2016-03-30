@@ -3,7 +3,7 @@ from werkzeug.utils import secure_filename
 from functools import wraps
 from database import Image
 import tinys3
-import random, os, config, uuid
+import random, os, config, uuid, time
 
 #Setup
 application = Flask(__name__)
@@ -79,9 +79,9 @@ def make_s3_upload(bucket_name:str, destination_directory, key_name, path_to_fil
 
         s3_connection.upload(s3_path, file, bucket_name)
 
-def add_to_database(guid, filename, file_url, bucket=config.aws_s3_bucket_id, passphrase=None, accessability=1):
+def add_to_database(guid, filename, file_url, bucket=config.aws_s3_bucket_id, passphrase=None, accessability=1, timestamp=int(time.time())):
 
-    Image.create(image_guid=guid, bucket=bucket, filename=filename, url=file_url, accessability=accessability, passphrase=passphrase)
+    Image.create(image_guid=guid, bucket=bucket, filename=filename, url=file_url, accessability=accessability, passphrase=passphrase, timestamp=timestamp)
 
 #Decorators
 

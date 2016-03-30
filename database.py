@@ -16,6 +16,7 @@ class Image(BaseModel):
     url = CharField(db_column='url_id', null=True)
     accessability = IntegerField(null=True)
     passphrase = CharField(null=True)
+    timestamp = IntegerField(null=True)
 
     class Meta:
         db_table = 'images'
@@ -27,9 +28,9 @@ class Image(BaseModel):
         \tfilename:{2}
         \turl:{3}
         \taccessability:{4}
-        \tpassphrase:{5}""".format(self.image_guid, self.bucket, self.filename,
-                                   self.url, self.accessability,
-                                   self.passphrase)
+        \tpassphrase:{5}
+        \ttime:{6}""".format(self.image_guid, self.bucket, self.filename,
+                                   self.url, self.accessability, self.passphrase, self.timestamp)
 
 if __name__ == '__main__':
     for image in Image.select():
