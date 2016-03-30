@@ -87,7 +87,8 @@ def get_images():
                             filename=image.filename),
                         display_url="{app_path}\{shortcode}".format
                             (app_path=config.app_path, shortcode=image.url),
-                        timestamp=image.timestamp)
+                        timestamp=image.timestamp,
+                        shortcode=image.url)
         models.append(im)
 
     return sorted(models, key= lambda image: image.timestamp)
@@ -158,11 +159,11 @@ def upload_img():
         return render_template('upload_form.html')
 
 
-@application.route('/<filename>/delete/')
-@requires_auth
-def delete_img(filename = None):
-    if filename:
-        sanitized_filename = secure_filename(filename)
+@application.route('/delete', methods=['GET'])
+#@requires_auth
+def delete_img():
+    if request.args.get('filename'):
+        sanitized_filename = secure_filename(request.args.get('filename'))
 
         query = Image.select().where(Image.url == sanitized_filename)
 
@@ -172,8 +173,17 @@ def delete_img(filename = None):
         image = query[0]
         s3_connection.delete(image.filename, bucket=config.aws_s3_bucket_id)
         image.delete_instance()
+    else:
+        return "Invalid URL Parameters"
 
-        return "Image deleted"
+    redirect_url = request.args.get('redirect')
+    if redirect_url:
+        return redirect('/{}/'.format(redirect_url), code=302)
+    else:
+        return "The file has been deleted"
+
+
+
 
 
 @application.route('/list/')
