@@ -3,6 +3,7 @@ boto3==1.3.0
 botocore==1.4.6
 docutils==0.12
 Flask==0.10.1
+gunicorn==19.4.5
 itsdangerous==0.24
 Jinja2==2.8
 jmespath==0.9.0
