@@ -1,12 +1,12 @@
 from flask import Flask, request, send_from_directory, redirect, url_for, render_template, Response
 from werkzeug.utils import secure_filename
 from functools import wraps
+from database import Image
 import tinys3
-import random, os, config
+import random, os, config, uuid
 
 #Setup
 application = Flask(__name__)
-#aws_client = boto3.client(service_name = 's3', aws_access_key_id=config.aws_access_key, aws_secret_access_key=config.aws_secret_key)
 print(config.aws_access_key, config.aws_secret_key)
 s3_connection = tinys3.Connection(config.aws_access_key, config.aws_secret_key, tls=True, endpoint=config.aws_s3_endpoint)
 
@@ -79,7 +79,9 @@ def make_s3_upload(bucket_name:str, destination_directory, key_name, path_to_fil
 
         s3_connection.upload(s3_path, file, bucket_name)
 
+def add_to_database(guid, filename, file_url, bucket=config.aws_s3_bucket_id, passphrase=None, accessability=1):
 
+    Image.create(image_guid=guid, bucket=bucket, filename=filename, url=file_url, accessability=accessability, passphrase=passphrase)
 
 #Decorators
 
@@ -100,25 +102,47 @@ def hello_world():
 @application.route('/<filename>/', methods=['GET'])
 def get_image(filename = None):
     if filename:
-        aws_url = 'http://' + config.aws_s3_endpoint + '/' + config.aws_s3_bucket_id + '/' + config.aws_s3_bucket_path + '/' + filename
+
+        image_object = Image.select().where(Image.url == filename)
+
+        if not image_object.exists():
+            return '404'
+
+        aws_url = 'http://' + config.aws_s3_endpoint + '/' + image_object[0].bucket + '/' + image_object[0].filename
         return render_template('display_image.html', app_path = config.app_path, image_url=aws_url)
+
     else:
-        return '404'
+        return 'Invalid URL specified.'
 
 @application.route('/upload/', methods=['GET', 'POST'])
 def upload_img():
     if request.method == 'POST':
         file = request.files['file']
         if file and is_acceptable_filename(file.filename):
-            new_filename = '{0}.{1}'.format(generate_random_string(), strip_extenstion(file.filename))
+
+            #Generate the file GUID
+            file_id = uuid.uuid4()
+            new_filename = '{0}.{1}'.format(file_id, strip_extenstion(file.filename))
+
+            #Create a new shortcode
+
+            new_url = generate_random_string()
+            while Image.select().where(Image.url == new_url).exists():
+                new_url = generate_random_string()
+
+            print(new_url)
+
+            #save the file to disk
             local_temp_path = os.path.join(application.config['UPLOAD_DIRECTORY'], new_filename)
-
-
             file.save(local_temp_path)
+
+            #Upload to AWS
             make_s3_upload(config.aws_s3_bucket_id, config.aws_s3_bucket_path, new_filename, local_temp_path)
+            add_to_database(file_id, os.path.join(config.aws_s3_bucket_path, new_filename), new_url)
+
             os.remove(local_temp_path)
 
-            return '{}/{}'.format(config.app_path, new_filename)
+            return '{}/{}'.format(config.app_path, new_url)
 
         else:
             return "An invalid operation was attempted."

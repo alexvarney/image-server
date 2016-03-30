@@ -30,3 +30,7 @@ class Image(BaseModel):
         \tpassphrase:{5}""".format(self.image_guid, self.bucket, self.filename,
                                    self.url, self.accessability,
                                    self.passphrase)
+
+if __name__ == '__main__':
+    for image in Image.select():
+        print(image)
