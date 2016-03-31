@@ -26,7 +26,6 @@ if not os.path.exists(application.config['UPLOAD_DIRECTORY']):
 
 
 #App Methods
-
 def strip_extenstion(filename: str) -> str:
     '''
     Strips the file extension from a file
@@ -68,15 +67,11 @@ def authenticate():
 
 
 def make_s3_upload(bucket_name:str, destination_directory, key_name, path_to_file):
-
     with open(path_to_file, 'rb') as file:
-
         s3_path = os.path.join(destination_directory, key_name)
-
         s3_connection.upload(s3_path, file, bucket_name)
 
 def add_to_database(guid, filename, file_url, timestamp, bucket=config.aws_s3_bucket_id, passphrase=None, accessability=1):
-
     Image.create(image_guid=guid, bucket=bucket, filename=filename, url=file_url, accessability=accessability, passphrase=passphrase, timestamp=timestamp)
 
 def get_images():
@@ -91,11 +86,10 @@ def get_images():
                         shortcode=image.url)
         models.append(im)
 
-    return sorted(models, key= lambda image: image.timestamp)
+    return sorted(models, key= lambda image: -image.timestamp)
 
 
 #Decorators
-
 def requires_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -105,85 +99,96 @@ def requires_auth(f):
         return f(*args, **kwargs)
     return decorated
 
+
 #App Routes
 @application.route('/')
 def hello_world():
     return "ImageServer running on " + application.config['PATH']
 
+
 @application.route('/<filename>/', methods=['GET'])
 def get_image(filename = None):
-    if filename:
 
-        image_object = Image.select().where(Image.url == filename)
-
-        if not image_object.exists():
-            return '404'
-
-        aws_url = 'http://' + config.aws_s3_endpoint + '/' + image_object[0].bucket + '/' + image_object[0].filename
-        return render_template('display_image.html', app_path = config.app_path, image_url=aws_url)
-
-    else:
+    if filename is None:
         return 'Invalid URL specified.'
+
+    image_object = Image.select().where(Image.url == filename)
+
+    if not image_object.exists():
+        return '404'
+
+    aws_url = 'http://' + config.aws_s3_endpoint + '/' + image_object[0].bucket + '/' + image_object[0].filename
+
+    return render_template('display_image.html', app_path = config.app_path, image_url=aws_url)
+
+
 
 @application.route('/upload/', methods=['GET', 'POST'])
 def upload_img():
-    if request.method == 'POST':
-        file = request.files['file']
-        if file and is_acceptable_filename(file.filename):
 
-            #Generate the file GUID
-            file_id = uuid.uuid4()
-            new_filename = '{0}.{1}'.format(file_id, strip_extenstion(file.filename))
-
-            #Create a new shortcode
-
-            new_url = generate_random_string()
-            while Image.select().where(Image.url == new_url).exists():
-                new_url = generate_random_string()
-
-            #save the file to disk
-            local_temp_path = os.path.join(application.config['UPLOAD_DIRECTORY'], new_filename)
-            file.save(local_temp_path)
-
-            #Upload to AWS
-            make_s3_upload(config.aws_s3_bucket_id, config.aws_s3_bucket_path, new_filename, local_temp_path)
-            add_to_database(file_id, os.path.join(config.aws_s3_bucket_path, new_filename), new_url, timestamp=int(time.time()))
-
-            os.remove(local_temp_path)
-
-            return '{}/{}'.format(config.app_path, new_url)
-
-        else:
-            return "An invalid operation was attempted."
-    else:
+    #Return default view if we aren't POSTing an image
+    if not request.method == 'POST':
         return render_template('upload_form.html')
+
+    #Get the file and check that it exists
+    file = request.files['file']
+    if not file:
+        return "Error: no file was provided"
+
+    #Check the file is valid
+    if not is_acceptable_filename(file.filename):
+        return "Error: An invalid file was provided. Files must be one of the following: " + ", ".join([('.' + x) for x in config.file_extentions])
+
+    #Generate the file GUID
+    file_id = uuid.uuid4()
+    new_filename = '{0}.{1}'.format(file_id, strip_extenstion(file.filename))
+
+    try:
+        #Create a new shortcode
+        new_url = generate_random_string()
+        while Image.select().where(Image.url == new_url).exists():
+            new_url = generate_random_string()
+
+        #save the file to disk
+        local_temp_path = os.path.join(application.config['UPLOAD_DIRECTORY'], new_filename)
+        file.save(local_temp_path)
+
+        #Upload to AWS
+        make_s3_upload(config.aws_s3_bucket_id, config.aws_s3_bucket_path, new_filename, local_temp_path)
+        add_to_database(file_id, os.path.join(config.aws_s3_bucket_path, new_filename), new_url, timestamp=int(time.time()))
+
+        os.remove(local_temp_path)
+
+        return '{}/{}'.format(config.app_path, new_url)
+
+    except:
+        return "An error occured while accessing the database. Please try again later."
+
 
 
 @application.route('/delete', methods=['GET'])
-#@requires_auth
+@requires_auth
 def delete_img():
-    if request.args.get('filename'):
-        sanitized_filename = secure_filename(request.args.get('filename'))
 
-        query = Image.select().where(Image.url == sanitized_filename)
-
-        if not query.exists():
-            return "The image does not exist"
-
-        image = query[0]
-        s3_connection.delete(image.filename, bucket=config.aws_s3_bucket_id)
-        image.delete_instance()
-    else:
+    if not request.args.get('filename'):
         return "Invalid URL Parameters"
 
+    sanitized_filename = secure_filename(request.args.get('filename'))
+    query = Image.select().where(Image.url == sanitized_filename)
+
+    if not query.exists():
+        return "The image does not exist"
+
+    image = query[0]
+    s3_connection.delete(image.filename, bucket=config.aws_s3_bucket_id)
+    image.delete_instance()
+
     redirect_url = request.args.get('redirect')
+
     if redirect_url:
         return redirect('/{}/'.format(redirect_url), code=302)
     else:
         return "The file has been deleted"
-
-
-
 
 
 @application.route('/list/')
