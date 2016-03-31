@@ -146,7 +146,7 @@ def upload_img():
     try:
         #Create a new shortcode
         new_url = generate_random_string()
-        while Image.select().where(Image.url == new_url).exists():
+        while database.Image.select().where(database.Image.url == new_url).exists():
             new_url = generate_random_string()
 
         #save the file to disk
