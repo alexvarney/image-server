@@ -5,18 +5,18 @@
     <title>List of images stored locally</title>
 </head>
 <body>
-    <h3>List of currently stored files at {{ base_url }}:</h3>
-    {% if file_list %}
+    <h3>List of currently stored files at {{ model.app_url }}:</h3>
+    {% if model.images %}
         <table border="0">
         <tr>
             <td>Image URL</td>
             <td>Timestamp</td>
             <td>Delete</td>
         </tr>
-        {% for item in file_list %}
+        {% for item in model.images %}
         <tr>
             <td><a href="{{ item.file_url }}">{{ item.display_url }}</a></td>
-            <td>{{ item.timestamp }}</td>
+            <td>{{ item.get_readable_timestamp() }}</td>
             <td><a href="http://{{ base_url}}/delete?filename={{ item.shortcode }}&redirect=list">(x)</a></td>
         </tr>
         {% endfor %}

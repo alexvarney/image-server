@@ -1,10 +1,8 @@
 from flask import Flask, request, send_from_directory, redirect, url_for, render_template, Response
 from werkzeug.utils import secure_filename
 from functools import wraps
-from database import Image
-from models import ImageModel
 import tinys3
-import random, os, config, uuid, time
+import random, os, config, uuid, time, models, database
 
 #Setup
 application = Flask(__name__)
@@ -72,21 +70,23 @@ def make_s3_upload(bucket_name:str, destination_directory, key_name, path_to_fil
         s3_connection.upload(s3_path, file, bucket_name)
 
 def add_to_database(guid, filename, file_url, timestamp, bucket=config.aws_s3_bucket_id, passphrase=None, accessability=1):
-    Image.create(image_guid=guid, bucket=bucket, filename=filename, url=file_url, accessability=accessability, passphrase=passphrase, timestamp=timestamp)
+    database.Image.create(image_guid=guid, bucket=bucket, filename=filename, url=file_url, accessability=accessability, passphrase=passphrase, timestamp=timestamp)
 
 def get_images():
-    models = []
-    for image in Image.select():
-        im = ImageModel(file_url="http://{endpoint}/{bucket}/{filename}".format
-                            (endpoint=config.aws_s3_endpoint, bucket=image.bucket,
-                            filename=image.filename),
-                        display_url="{app_path}\{shortcode}".format
-                            (app_path=config.app_path, shortcode=image.url),
-                        timestamp=image.timestamp,
-                        shortcode=image.url)
-        models.append(im)
+    image_list = []
 
-    return sorted(models, key= lambda image: -image.timestamp)
+    for image in database.Image.select():
+        im = models.Image(  file_url="http://{endpoint}/{bucket}/{filename}".format(
+                                endpoint=config.aws_s3_endpoint, bucket=image.bucket,
+                                filename=image.filename),
+                            display_url="{app_path}\{shortcode}".format(
+                                app_path=config.app_path,
+                                shortcode=image.url),
+                            timestamp=image.timestamp,
+                            shortcode=image.url)
+        image_list.append(im)
+
+    return sorted(image_list, key= lambda image: -image.timestamp)
 
 
 #Decorators
@@ -112,14 +112,14 @@ def get_image(filename = None):
     if filename is None:
         return 'Invalid URL specified.'
 
-    image_object = Image.select().where(Image.url == filename)
+    image_object = database.Image.select().where(database.Image.url == filename)
 
     if not image_object.exists():
         return '404'
 
     aws_url = 'http://' + config.aws_s3_endpoint + '/' + image_object[0].bucket + '/' + image_object[0].filename
 
-    return render_template('display_image.html', app_path = config.app_path, image_url=aws_url)
+    return render_template('display_image.html', model = models.TemplateDisplayImage(config.app_path, aws_url))
 
 
 
@@ -174,7 +174,7 @@ def delete_img():
         return "Invalid URL Parameters"
 
     sanitized_filename = secure_filename(request.args.get('filename'))
-    query = Image.select().where(Image.url == sanitized_filename)
+    query = database.Image.select().where(database.Image.url == sanitized_filename)
 
     if not query.exists():
         return "The image does not exist"
@@ -193,7 +193,9 @@ def delete_img():
 
 @application.route('/list/')
 def list_files():
-    return render_template('list_images.html', file_list = get_images(), base_url = application.config['PATH'])
+
+    template_model = models.TemplateListImage(config.app_path, get_images())
+    return render_template('list_images.html', model = template_model)
 
 if __name__ == '__main__':
     application.run('0.0.0.0', debug=True)
