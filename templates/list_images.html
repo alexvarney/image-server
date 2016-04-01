@@ -17,7 +17,7 @@
         <tr>
             <td><a href="{{ item.file_url }}">{{ item.display_url }}</a></td>
             <td>{{ item.get_readable_timestamp() }}</td>
-            <td><a href="http://{{ base_url}}/delete?filename={{ item.shortcode }}&redirect=list">(x)</a></td>
+            <td><a href="http://{{ model.app_url}}/delete?filename={{ item.shortcode }}&redirect=list">(x)</a></td>
         </tr>
         {% endfor %}
     </table>
