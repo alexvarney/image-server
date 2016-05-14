@@ -112,6 +112,9 @@ def get_image(filename = None):
     if filename is None:
         return 'Invalid URL specified.'
 
+    if '.' in filename:
+        filename = filename.split('.')[0]
+
     image_object = database.Image.select().where(database.Image.url == filename)
 
     if not image_object.exists():
@@ -159,7 +162,7 @@ def upload_img():
 
         os.remove(local_temp_path)
 
-        return '{}/{}'.format(config.app_path, new_url)
+        return '{}/{}'.format(config.app_path, new_url + '.png')
 
     except:
         return "An error occured while accessing the database. Please try again later."
