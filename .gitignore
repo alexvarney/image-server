@@ -16,3 +16,9 @@ rootkey.csv
 .idea/vcs.xml
 
 *.pyc
+
+.DS_Store
+
+capture.png
+
+.DS_Store
